@@ -1,0 +1,7 @@
+/.cproject
+/.project
+/.settings
+/Debug
+/OS.launch
+/STM32F429ZITX_FLASH.ld
+/STM32F429ZITX_RAM.ld
