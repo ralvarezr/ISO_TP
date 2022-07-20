@@ -66,10 +66,13 @@
 /************	DEFINCIONES VARIAS	***************/
 #define EXEC_RETURN 			(0xFFFFFFF9)
 #define AUTO_STACKING_SIZE		(8u)
-#define AUTO_STACKING_FULL_SIZE	(16u)
+#define AUTO_STACKING_FULL_SIZE	(17u)
 
 /********************** internal data declaration ****************************/
-static os_control_t os_control;
+static os_control_t os_control = {
+		.system_status = OS_BOOTING,
+		.n_tasks = 0
+};
 
 /********************** internal functions declaration ***********************/
 static void scheduler(void);
@@ -96,7 +99,7 @@ static void scheduler(void);
 void os_init(void)
 {
 	NVIC_SetPriority(PendSV_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
-
+	//NVIC_SetPriority(PendSV_IRQn, 1);
 	os_control.current_task = NULL;
 	os_control.next_task = NULL;
 	os_control.system_status = OS_FRESH;
@@ -135,6 +138,7 @@ void os_task_init(task_t *task, void *entry_point)
 		task->stack_pointer = (uint32_t)(task->stack + STACK_SIZE/4 - AUTO_STACKING_FULL_SIZE);
 		task->status = TASK_READY;
 		task->id = tasks_amount;
+		task->entry_point = entry_point;
 
 		/**
 		 * Actualizo la lista de tareas del OS.
@@ -160,27 +164,34 @@ void os_task_init(task_t *task, void *entry_point)
 void SysTick_Handler(void)
 {
 	/**
-	 * Se ejecuta el scheduler para determinar cuál es la siguiente tarea a ser ejecutada y 
-	 * prepararla para el cambio de contexto.
+	 * Hasta que no se haya inicializado el OS, el scheduler ni la excep PendSV deben ejecutarse.
 	 */
-	scheduler();
+	if( OS_BOOTING != os_control.system_status)
+	{
 
-	/**
-	 * Se setea el bit correspondiente a la excepcion PendSV
-	 */
-	SCB->ICSR = SCB_ICSR_PENDSVSET_Msk;
+		/**
+		 * Se ejecuta el scheduler para determinar cuál es la siguiente tarea a ser ejecutada y
+		 * prepararla para el cambio de contexto.
+		 */
+		scheduler();
 
-	/**
-	 * Instruction Synchronization Barrier; flushes the pipeline and ensures that
-	 * all previous instructions are completed before executing new instructions
-	 */
-	__ISB();
+		/**
+		 * Se setea el bit correspondiente a la excepcion PendSV
+		 */
+		SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
 
-	/**
-	 * Data Synchronization Barrier; ensures that all memory accesses are
-	 * completed before next instruction is executed
-	 */
-	__DSB();
+		/**
+		 * Instruction Synchronization Barrier; flushes the pipeline and ensures that
+		 * all previous instructions are completed before executing new instructions
+		 */
+		//__ISB();
+
+		/**
+		 * Data Synchronization Barrier; ensures that all memory accesses are
+		 * completed before next instruction is executed
+		 */
+		//__DSB();
+	}
 }
 
 /************************************************************************************************
