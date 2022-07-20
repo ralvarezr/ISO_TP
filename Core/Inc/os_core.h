@@ -15,8 +15,8 @@
 /********************** macros ***********************************************/
 
 #define STACK_SIZE	        (256u)          // Tamaño de Stack de cada tarea.
-#define TASK_NAME_SIZE          (256u)
-#define MAX_TASKS_AMOUNT        (8u)            // Cantidad máxima de tareas.
+#define TASK_NAME_SIZE      (256u)
+#define MAX_TASKS_AMOUNT    (8u)            // Cantidad máxima de tareas.
 
 /********************** typedef **********************************************/
 
@@ -35,6 +35,7 @@ typedef enum
  ****************************************************************************/
 typedef enum
 {
+		OS_BOOTING,
         OS_FRESH,
         OS_RUNNING
 } os_status_t;
@@ -43,14 +44,14 @@ typedef enum
  *  Estructura de las tareas.
  ****************************************************************************/
 struct _task {
-        uint32_t stack[STACK_SIZE / 4];
+        uint32_t stack[STACK_SIZE/4];
         uint32_t stack_pointer;
         void *entry_point;
         task_status_t status; 
         uint8_t priority;
         uint8_t id;
         uint32_t ticks_blocked;
-        char name[TASK_NAME_SIZE];
+       // char name[TASK_NAME_SIZE];
 };
 
 typedef struct _task task_t;
