@@ -184,13 +184,13 @@ void SysTick_Handler(void)
 		 * Instruction Synchronization Barrier; flushes the pipeline and ensures that
 		 * all previous instructions are completed before executing new instructions
 		 */
-		//__ISB();
+		__ISB();
 
 		/**
 		 * Data Synchronization Barrier; ensures that all memory accesses are
 		 * completed before next instruction is executed
 		 */
-		//__DSB();
+		__DSB();
 	}
 }
 
