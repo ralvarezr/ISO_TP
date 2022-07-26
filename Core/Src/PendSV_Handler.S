@@ -61,7 +61,6 @@ PendSV_Handler:
 	msr msp,r0
 	pop {r4-r11,lr}			//Recuperados todos los valores de registros
 
-
 	/*
 	* Habiendo hecho el cambio de contexto y recuperado los valores de los registros, es necesario
 	* determinar si el contexto tiene guardados registros correspondientes a la FPU. si este es el caso
@@ -71,5 +70,6 @@ PendSV_Handler:
 	tst lr,0x10
 	it eq
 	vpopeq {s16-s31}
+
 	bx lr					//se hace un branch indirect con el valor de LR que es nuevamente EXEC_RETURN
 

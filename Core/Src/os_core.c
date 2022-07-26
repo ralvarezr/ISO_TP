@@ -98,8 +98,9 @@ static void scheduler(void);
  *************************************************************************************************/
 void os_init(void)
 {
+
 	NVIC_SetPriority(PendSV_IRQn, (1 << __NVIC_PRIO_BITS) - 1);
-	//NVIC_SetPriority(PendSV_IRQn, 1);
+
 	os_control.current_task = NULL;
 	os_control.next_task = NULL;
 	os_control.system_status = OS_FRESH;
@@ -107,7 +108,7 @@ void os_init(void)
 }
 
 /************************************************************************************************
- * @fn void os_task_init(void*, uint32_t*, uint32_t*)
+ * @fn void os_task_init(task_t*, void*)
  * @brief Inicializa las tareas.
  *
  * @details
@@ -135,7 +136,7 @@ void os_task_init(task_t *task, void *entry_point)
 		/**
 		 * Configuración del resto de parámetros de la tarea.
 		 */
-		task->stack_pointer = (uint32_t)(task->stack + STACK_SIZE/4 - AUTO_STACKING_FULL_SIZE);
+		task->stack_pointer = (uint32_t)(task->stack + (STACK_SIZE/4) - AUTO_STACKING_FULL_SIZE);
 		task->status = TASK_READY;
 		task->id = tasks_amount;
 		task->entry_point = entry_point;
@@ -166,7 +167,7 @@ void SysTick_Handler(void)
 	/**
 	 * Hasta que no se haya inicializado el OS, el scheduler ni la excep PendSV deben ejecutarse.
 	 */
-	if( OS_BOOTING != os_control.system_status)
+	if (OS_BOOTING != os_control.system_status)
 	{
 
 		/**
