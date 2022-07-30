@@ -76,7 +76,7 @@ static os_control_t os_control = {
 
 /********************** internal functions declaration ***********************/
 static void scheduler(void);
-
+static void init_idle_task(void);
 /********************** internal data definition *****************************/
 
 /********************** external data definition *****************************/
@@ -86,6 +86,81 @@ static void scheduler(void);
 /********************** external functions definition ************************/
 
 /************************************************************************************************
+ * @fn void idle_task(void)
+ * @brief Tarea Idle (Weak).
+ *
+ * @details
+ * Esta tarea se ejecuta solo cuando no hay otras tareas en estado Ready
+ * para ser ejecutadas. Se define como weak para que pueda ser redefinida por el usuario.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+__attribute__((weak)) void idle_task(void)
+{
+	while(1)
+	{
+			__WFI();
+	}
+}
+
+/************************************************************************************************
+ * @fn void tick_hook(void)
+ * @brief tickHook (Weak).
+ *
+ * @details
+ * Esta función se ejecuta en el contexto de interrupción del SysTick. Es la última tarea a ser ejecutada
+ * por el SysTick_Handler. Se define como weak para que pueda ser redefinida por el usuario.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+__attribute__((weak)) void tick_hook(void)
+{
+
+	__asm("nop");
+}
+
+/************************************************************************************************
+ * @fn void return_hook(void)
+ * @brief Hook de Retorno de las tareas (Weak).
+ *
+ * @details
+ * Esta función se ejecuta solo cuando una tarea termina su ejecución. Esto no debería suceder ya que
+ * no están definidas las tareas de tipo One-Shot.
+ * Se define como weak para que pueda ser redefinida por el usuario.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+__attribute__((weak)) void return_hook(void)
+{
+	while(1)
+	{
+
+	}
+}
+
+/************************************************************************************************
+ * @fn void error_hook(void)
+ * @brief Hook de Error del OS (Weak).
+ *
+ * @details
+ * Esta función se ejecuta solo cuando ocurre un error relacionado al OS.
+ * Se define como weak para que pueda ser redefinida por el usuario.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+__attribute__((weak)) void error_hook(void)
+{
+	while(1)
+	{
+
+	}
+}
+
+/************************************************************************************************
  * @fn void os_init(void)
  * @brief Inicialización del OS.
  *
@@ -93,6 +168,7 @@ static void scheduler(void);
  * Configura la prioridad de la interrupción PendSV a la más baja,
  * e inicializa la estructura de control del OS.
  * Esta funcion debe ser llamada ANTES que la funcion os_task_init.
+ *
  * @param None.
  * @return None.
  *************************************************************************************************/
@@ -104,6 +180,8 @@ void os_init(void)
 	os_control.current_task = NULL;
 	os_control.next_task = NULL;
 	os_control.system_status = OS_FRESH;
+
+	//init_idle_task();
 
 }
 
@@ -131,6 +209,7 @@ void os_task_init(task_t *task, void *entry_point)
 		 */
 		task->stack[STACK_SIZE/4 - XPSR_POS] = 1 << 24;					// xPSR.T = 1. Set Thumb bit.
 		task->stack[STACK_SIZE/4 - PC_POS] = (uint32_t)entry_point;		// Entry Point.
+		task->stack[STACK_SIZE/4 - LR_POS] = (uint32_t)return_hook;		// Dirección donde va la tarea si termina. (No deberia terminar nunca).
 		task->stack[STACK_SIZE/4 - LR_IRQ_POS] = EXEC_RETURN;
 
 		/**
@@ -147,6 +226,14 @@ void os_task_init(task_t *task, void *entry_point)
 		os_control.n_tasks = tasks_amount;
 		os_control.tasks_list[os_control.n_tasks++] = task;
 		tasks_amount++;
+	}
+	else
+	{
+		/**
+		 * Si se supera la cantidad de tareas permitidas, indico el error y voy al hook.
+		 */
+		//os_control.error = -1;
+		error_hook();
 	}
 
 }
@@ -192,6 +279,11 @@ void SysTick_Handler(void)
 		 * completed before next instruction is executed
 		 */
 		__DSB();
+
+		/**
+		 * Antes de salir del SysTick_Handler ejecuto el hook del tick.
+		 */
+		tick_hook();
 	}
 }
 
@@ -251,6 +343,7 @@ uint32_t getContextoSiguiente(uint32_t current_sp)
  * @details
  * Determina cuál es la tarea siguiente a ser ejecutada. Las tareas son elegidas
  * mediante Round Robin. Esta función es de uso interno del OS, no es visible al usuario final.
+ *
  * @param None.
  * @return None.
  *************************************************************************************************/
@@ -280,7 +373,22 @@ void scheduler(void)
 		os_control.next_task = os_control.tasks_list[os_control.current_task->id + 1];
 	}
 
+}
 
+/***********************************************************************************************************
+ * FUNCIONES DE PRUEBA
+ ***********************************************************************************************************/
 
+/*
+ * SOLO PUEDE PASAR DE RUNNING A BLOCKED.
+ */
+void test_block_task(task_t *task)
+{
+	task->status = TASK_BLOCKED;
+}
+
+void test_unblock_task(task_t *task)
+{
+	task->status = TASK_READY;
 }
 /********************** end of file ******************************************/

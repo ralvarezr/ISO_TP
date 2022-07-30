@@ -27,7 +27,7 @@ typedef enum
 {
         TASK_READY,
         TASK_RUNNING,
-        //BLOCKED       // A ser implementado.
+        TASK_BLOCKED
 }task_status_t;
 
 /****************************************************************************
@@ -64,8 +64,9 @@ struct _os_control {
         task_t *current_task;
         task_t *next_task;
         int32_t error; 
-        task_t *tasks_list[MAX_TASKS_AMOUNT]; 
+        task_t *tasks_list[MAX_TASKS_AMOUNT];
         uint32_t n_tasks;
+        uint32_t n_tasks_blocked;			// Cantidad de tareas bloqueadas.
 };
 
 typedef struct _os_control os_control_t;
@@ -76,6 +77,10 @@ typedef struct _os_control os_control_t;
 
 void os_init(void);
 void os_task_init(task_t *task, void *entry_point);
+
+//Funciones de Prueba de estado bloqueado. No seran parte del OS.
+void test_block_task(task_t *task);
+void test_unblock_task(task_t *task);
 
 
 #endif /* INC_OS_CORE_H_ */
