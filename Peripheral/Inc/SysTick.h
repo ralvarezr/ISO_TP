@@ -10,7 +10,7 @@
 
 #include "main.h"
 
-#define SysTick_ClockMax 180000
+#define SysTick_ClockMax 16000000
 
 void SysTick_ClockConfig(uint32_t arr);
 void msIncTicks(void);
