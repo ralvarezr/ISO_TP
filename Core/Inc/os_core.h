@@ -60,7 +60,7 @@ typedef struct _task task_t;
  ****************************************************************************/
 struct _os_control {
         os_status_t system_status; 
-        bool schedulerIRQ;              // scheduling al volver de IRQ
+        bool schedulerIRQ;              	// scheduling al volver de IRQ
         task_t *current_task;
         task_t *next_task;
         int32_t error; 
@@ -79,7 +79,7 @@ void os_init(void);
 void os_task_init(task_t *task, void *entry_point);
 
 //Funciones de Prueba de estado bloqueado. No seran parte del OS.
-void test_block_task(task_t *task);
+void test_block_task(void);
 void test_unblock_task(task_t *task);
 
 

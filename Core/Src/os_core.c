@@ -41,6 +41,8 @@
 #include "stm32f429xx.h"
 #include <stddef.h>
 
+#include "GPIO.h" //**************PRUEBA******************
+
 /********************** macros and definitions *******************************/
 
 /*************	POSICIONES DENTRO DEL STACK	********/
@@ -71,12 +73,17 @@
 /********************** internal data declaration ****************************/
 static os_control_t os_control = {
 		.system_status = OS_BOOTING,
-		.n_tasks = 0
+		.n_tasks = 0,
+		.n_tasks_blocked = 0
 };
+
+static task_t idle;
 
 /********************** internal functions declaration ***********************/
 static void scheduler(void);
 static void init_idle_task(void);
+static task_t* get_next_task_ready(void);
+
 /********************** internal data definition *****************************/
 
 /********************** external data definition *****************************/
@@ -98,9 +105,27 @@ static void init_idle_task(void);
  ************************************************************************************************/
 __attribute__((weak)) void idle_task(void)
 {
+	//Programa de prueba para la tarea Idle.
+	//Enciden el Led Rojo de la placa nucleo y luego desbloquea las dos tareas bloqueadas.
+	uint32_t j = 0;
+	uint32_t h = 0;
+
 	while(1)
 	{
-			__WFI();
+		//__WFI();
+		j++;
+		if (j >= 6000000)
+		{
+			toggle_LED3();
+			j = 0;
+			h++;
+			if (h == 4)
+			{
+				test_unblock_task(os_control.tasks_list[0]);
+				test_unblock_task(os_control.tasks_list[1]);
+				h = 0;
+			}
+		}
 	}
 }
 
@@ -161,6 +186,35 @@ __attribute__((weak)) void error_hook(void)
 }
 
 /************************************************************************************************
+ * @fn void init_idle_task(void)
+ * @brief Inicializa la tarea Idle.
+ *
+ * @details
+ * Esta tarea está presente siempre en el OS pero no está dentro de la lista de tareas.
+ * Tiene la prioridad más baja de todas las tareas.
+ *
+ ************************************************************************************************/
+void init_idle_task(void)
+{
+	/**
+	 * Configuración del Stack de la tarea.
+	 */
+	idle.stack[STACK_SIZE / 4 - XPSR_POS] = 1 << 24;					// xPSR.T = 1. Set Thumb bit.
+	idle.stack[STACK_SIZE / 4 - PC_POS] = (uint32_t) idle_task;		// Entry Point.
+	idle.stack[STACK_SIZE / 4 - LR_POS] = (uint32_t) return_hook;		// Dirección de retorno de la tarea. (No deberia retornar nunca).
+	idle.stack[STACK_SIZE / 4 - LR_IRQ_POS] = EXEC_RETURN;
+
+	/**
+	 * Configuración del resto de parámetros de la tarea.
+	 */
+	idle.stack_pointer = (uint32_t) (idle.stack + (STACK_SIZE / 4) - AUTO_STACKING_FULL_SIZE);
+	idle.status = TASK_READY;
+	idle.id = 100;
+	idle.entry_point = idle_task;
+
+}
+
+/************************************************************************************************
  * @fn void os_init(void)
  * @brief Inicialización del OS.
  *
@@ -181,7 +235,7 @@ void os_init(void)
 	os_control.next_task = NULL;
 	os_control.system_status = OS_FRESH;
 
-	//init_idle_task();
+	init_idle_task();
 
 }
 
@@ -209,7 +263,7 @@ void os_task_init(task_t *task, void *entry_point)
 		 */
 		task->stack[STACK_SIZE/4 - XPSR_POS] = 1 << 24;					// xPSR.T = 1. Set Thumb bit.
 		task->stack[STACK_SIZE/4 - PC_POS] = (uint32_t)entry_point;		// Entry Point.
-		task->stack[STACK_SIZE/4 - LR_POS] = (uint32_t)return_hook;		// Dirección donde va la tarea si termina. (No deberia terminar nunca).
+		task->stack[STACK_SIZE/4 - LR_POS] = (uint32_t)return_hook;		// Dirección de retorno de la tarea. (No deberia retornar nunca).
 		task->stack[STACK_SIZE/4 - LR_IRQ_POS] = EXEC_RETURN;
 
 		/**
@@ -321,11 +375,15 @@ uint32_t getContextoSiguiente(uint32_t current_sp)
 	{
 		/**
 		 * Si el OS ya está en ejecución, se almacena el SP de la tarea actual,
-		 * esta tarea se pone en estado Ready, y la tarea siguiente se convierte
-		 * en la actual a ser ejecutada y se pone en estado Running.
+		 * esta tarea se pone en estado Ready sólo si no está bloqueada,
+		 * y la tarea siguiente se convierteen la actual a ser ejecutada
+		 * y se pone en estado Running.
 		 */
 		os_control.current_task->stack_pointer = current_sp;
-		os_control.current_task->status = TASK_READY;
+		if (os_control.current_task->status != TASK_BLOCKED)
+		{
+			os_control.current_task->status = TASK_READY;
+		}
 
 		next_sp = os_control.next_task->stack_pointer;
 
@@ -360,35 +418,95 @@ void scheduler(void)
 		os_control.current_task = os_control.tasks_list[0];
 	}
 	/**
-	 * Si el OS ya está en ejecución, entonces, según la política de scheduling de este OS,
-	 * la siguiente tarea a ser ejecutada es la siguiente en la lista de tareas.
-	 * En caso de que se haya llegado al final de la lista, se elige la primera.
+	 * Si la cantidad de tareas bloqueadas es igual a la cantidad de tareas,
+	 * entonces la siguiente tarea a ejecutar es la tarea idle.
 	 */
-	else if (os_control.current_task->id + 1 >= os_control.n_tasks)
+	else if (os_control.n_tasks_blocked == os_control.n_tasks)
 	{
-		os_control.next_task = os_control.tasks_list[0];
+		os_control.next_task = &idle;
 	}
+	/**
+	 * Si el OS ya está en ejecución, entonces, según la política de scheduling de este OS,
+	 * la siguiente tarea a ser ejecutada es la siguiente en la lista de tareas que no
+	 * se encuentre bloqueada.
+	 */
 	else
 	{
-		os_control.next_task = os_control.tasks_list[os_control.current_task->id + 1];
+		os_control.next_task = get_next_task_ready();
 	}
 
+}
+
+/*************************************************************************************************
+ * @fn task_t* get_next_task_ready(void)
+ * @brief Devuelve la siguiente tarea en estado Ready.
+ *
+ * @details
+ * Busca en la lista de tareas cuál es la siguiente en estado Ready.
+ * Si ninguna está en estado Ready, entonces verifica que la tarea actual esté en estado Running,
+ * lo que indica que es la única tarea que no está bloqueada.
+ * Por defecto se devuelve la tarea idle, ya que si no se encuentra alguna tarea en estado ready
+ * o running es porque todas están bloqueadas.
+ *
+ * @param None.
+ * @return task_t* Puntero a la siguiente tarea a ser ejecutada.
+ *************************************************************************************************/
+task_t* get_next_task_ready(void)
+{
+	task_t *retval = &idle;
+
+	uint32_t index = os_control.current_task->id + 1;
+	if(index >= os_control.n_tasks)
+	{
+		index = 0;
+	}
+
+	for (uint32_t j = 0; j < os_control.n_tasks; j++)
+	{
+		if((TASK_READY == os_control.tasks_list[index]->status) || (TASK_RUNNING == os_control.tasks_list[index]->status))
+		{
+			retval = os_control.tasks_list[index];
+			break;
+		}
+
+		index++;
+		if(index >= os_control.n_tasks)
+		{
+			index = 0;
+		}
+	}
+
+	return retval;
 }
 
 /***********************************************************************************************************
  * FUNCIONES DE PRUEBA
  ***********************************************************************************************************/
 
-/*
- * SOLO PUEDE PASAR DE RUNNING A BLOCKED.
- */
-void test_block_task(task_t *task)
+/************************************************************************************************
+ * @fn void test_block_task(void)
+ * @brief
+ *  Bloquea la tarea que se está ejecutando y llama al scheduler para cambiar a la siguiente tarea.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+void test_block_task(void)
 {
-	task->status = TASK_BLOCKED;
+	if(os_control.current_task->status == TASK_RUNNING)
+	{
+		os_control.current_task->status = TASK_BLOCKED;
+		os_control.n_tasks_blocked++;
+		scheduler();
+	}
 }
 
 void test_unblock_task(task_t *task)
 {
-	task->status = TASK_READY;
+	if(task != NULL)
+	{
+		task->status = TASK_READY;
+		os_control.n_tasks_blocked--;
+	}
 }
 /********************** end of file ******************************************/
