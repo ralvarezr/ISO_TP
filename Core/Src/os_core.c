@@ -74,7 +74,8 @@
 static os_control_t os_control = {
 		.system_status = OS_BOOTING,
 		.n_tasks = 0,
-		.n_tasks_blocked = 0
+		.n_tasks_blocked = 0,
+		.error = OS_ERROR_GENERAL
 };
 
 static task_t idle;
@@ -200,7 +201,7 @@ void init_idle_task(void)
 	 * Configuración del Stack de la tarea.
 	 */
 	idle.stack[STACK_SIZE / 4 - XPSR_POS] = 1 << 24;					// xPSR.T = 1. Set Thumb bit.
-	idle.stack[STACK_SIZE / 4 - PC_POS] = (uint32_t) idle_task;		// Entry Point.
+	idle.stack[STACK_SIZE / 4 - PC_POS] = (uint32_t) idle_task;			// Entry Point.
 	idle.stack[STACK_SIZE / 4 - LR_POS] = (uint32_t) return_hook;		// Dirección de retorno de la tarea. (No deberia retornar nunca).
 	idle.stack[STACK_SIZE / 4 - LR_IRQ_POS] = EXEC_RETURN;
 
@@ -286,7 +287,7 @@ void os_task_init(task_t *task, void *entry_point)
 		/**
 		 * Si se supera la cantidad de tareas permitidas, indico el error y voy al hook.
 		 */
-		//os_control.error = -1;
+		os_control.error = OS_ERROR_TASKS_COUNT;
 		error_hook();
 	}
 

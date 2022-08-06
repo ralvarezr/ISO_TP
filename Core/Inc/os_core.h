@@ -21,6 +21,15 @@
 /********************** typedef **********************************************/
 
 /****************************************************************************
+ *  Errores del OS.
+ ****************************************************************************/
+typedef enum
+{
+        OS_ERROR_GENERAL 		= -1,
+        OS_ERROR_TASKS_COUNT	= -2
+}os_error_t;
+
+/****************************************************************************
  *  Estado de las tareas.
  ****************************************************************************/
 typedef enum 
@@ -55,6 +64,7 @@ struct _task {
 };
 
 typedef struct _task task_t;
+
 /****************************************************************************
  *  Estructura de control interna de OS.
  ****************************************************************************/
@@ -63,7 +73,7 @@ struct _os_control {
         bool schedulerIRQ;              	// scheduling al volver de IRQ
         task_t *current_task;
         task_t *next_task;
-        int32_t error; 
+        os_error_t error;
         task_t *tasks_list[MAX_TASKS_AMOUNT];
         uint32_t n_tasks;
         uint32_t n_tasks_blocked;			// Cantidad de tareas bloqueadas.
