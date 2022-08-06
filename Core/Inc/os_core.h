@@ -70,6 +70,16 @@ struct _task {
 typedef struct _task task_t;
 
 /****************************************************************************
+ *  Estructura de las prioridades.
+ ****************************************************************************/
+struct _priority {
+        task_t *tasks_list[MAX_TASKS_AMOUNT];
+        uint8_t n_tasks;
+};
+
+typedef struct _priority priority_t;
+
+/****************************************************************************
  *  Estructura de control interna de OS.
  ****************************************************************************/
 struct _os_control {
@@ -78,9 +88,11 @@ struct _os_control {
         task_t *current_task;
         task_t *next_task;
         os_error_t error;
-        task_t *tasks_list[MAX_TASKS_AMOUNT];
+        priority_t priorities[PRIORITIES_AMOUNT];
         uint32_t n_tasks;
         uint32_t n_tasks_blocked;			// Cantidad de tareas bloqueadas.
+
+       // task_t *tasks_list[MAX_TASKS_AMOUNT]; // ******** BORRAR ********
 };
 
 typedef struct _os_control os_control_t;

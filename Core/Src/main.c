@@ -91,7 +91,7 @@ void tarea2(void)
 			if (t == 20)
 			{
 				test_block_task();
-				//t = 0;
+				t = 0;
 			}
 		}
 	}
@@ -128,7 +128,7 @@ int main(void)
 
 
 	os_task_init(&s_tarea1, tarea1, 0);
-	os_task_init(&s_tarea2, tarea2, 0);
+	os_task_init(&s_tarea2, tarea2, 3);
 	//os_task_init(&s_tarea3, tarea3);
 
 	os_init();

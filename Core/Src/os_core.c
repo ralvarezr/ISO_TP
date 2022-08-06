@@ -64,11 +64,11 @@
 #define R10_POS		16
 #define R11_POS		17
 
-
 /************	DEFINCIONES VARIAS	***************/
 #define EXEC_RETURN 			(0xFFFFFFF9)
 #define AUTO_STACKING_SIZE		(8u)
 #define AUTO_STACKING_FULL_SIZE	(17u)
+#define IDLE_PRIORITY			(100u)
 
 /********************** internal data declaration ****************************/
 static os_control_t os_control = {
@@ -76,6 +76,7 @@ static os_control_t os_control = {
 		.n_tasks = 0,
 		.n_tasks_blocked = 0,
 		.error = OS_ERROR_GENERAL
+
 };
 
 static task_t idle;
@@ -122,8 +123,8 @@ __attribute__((weak)) void idle_task(void)
 			h++;
 			if (h == 4)
 			{
-				test_unblock_task(os_control.tasks_list[0]);
-				test_unblock_task(os_control.tasks_list[1]);
+				test_unblock_task(os_control.priorities[0].tasks_list[0]);
+				test_unblock_task(os_control.priorities[3].tasks_list[0]);
 				h = 0;
 			}
 		}
@@ -210,8 +211,8 @@ void init_idle_task(void)
 	 */
 	idle.stack_pointer = (uint32_t) (idle.stack + (STACK_SIZE / 4) - AUTO_STACKING_FULL_SIZE);
 	idle.status = TASK_READY;
-	idle.id = 100;
-	idle.priority = 100;
+	idle.id = IDLE_PRIORITY;
+	idle.priority = IDLE_PRIORITY;
 	idle.entry_point = idle_task;
 
 }
@@ -263,9 +264,8 @@ void os_task_init(task_t *task, void *entry_point, uint8_t priority)
 		error_hook();
 	}
 
-	static uint32_t tasks_amount = 0;
 
-	if (tasks_amount < MAX_TASKS_AMOUNT)
+	if (os_control.n_tasks < MAX_TASKS_AMOUNT)
 	{
 
 		/**
@@ -281,16 +281,20 @@ void os_task_init(task_t *task, void *entry_point, uint8_t priority)
 		 */
 		task->stack_pointer = (uint32_t)(task->stack + (STACK_SIZE/4) - AUTO_STACKING_FULL_SIZE);
 		task->status = TASK_READY;
-		task->id = tasks_amount;
+		task->id = os_control.n_tasks;
 		task->entry_point = entry_point;
 		task->priority = priority;
 
 		/**
 		 * Actualizo la lista de tareas del OS.
 		 */
-		os_control.n_tasks = tasks_amount;
-		os_control.tasks_list[os_control.n_tasks++] = task;
-		tasks_amount++;
+
+		uint8_t pos_list = os_control.priorities[priority].n_tasks;		// Obtengo la posición para legibilidad.
+		os_control.priorities[priority].tasks_list[pos_list] = task;
+
+		os_control.priorities[priority].n_tasks++;
+
+		os_control.n_tasks++;
 	}
 	else
 	{
@@ -426,7 +430,7 @@ void scheduler(void)
 		 * tarea actual para que sea ejecutada.
 		 */
 
-		os_control.current_task = os_control.tasks_list[0];
+		os_control.current_task = get_next_task_ready();
 	}
 	/**
 	 * Si la cantidad de tareas bloqueadas es igual a la cantidad de tareas,
@@ -437,8 +441,8 @@ void scheduler(void)
 		os_control.next_task = &idle;
 	}
 	/**
-	 * Si el OS ya está en ejecución, entonces, según la política de scheduling de este OS,
-	 * la siguiente tarea a ser ejecutada es la siguiente en la lista de tareas que no
+	 * Si el OS ya está en ejecución, entonces, según la política de scheduling del OS,
+	 * la siguiente tarea a ser ejecutada es la primera tarea de mayor prioridad que no
 	 * se encuentre bloqueada.
 	 */
 	else
@@ -453,7 +457,7 @@ void scheduler(void)
  * @brief Devuelve la siguiente tarea en estado Ready.
  *
  * @details
- * Busca en la lista de tareas cuál es la siguiente en estado Ready.
+ * Busca en la lista de tareas cuál es la siguiente de mayor pioridad en estado Ready.
  * Si ninguna está en estado Ready, entonces verifica que la tarea actual esté en estado Running,
  * lo que indica que es la única tarea que no está bloqueada.
  * Por defecto se devuelve la tarea idle, ya que si no se encuentra alguna tarea en estado ready
@@ -464,26 +468,38 @@ void scheduler(void)
  *************************************************************************************************/
 task_t* get_next_task_ready(void)
 {
-	task_t *retval = &idle;
+	task_t *retval = NULL;
+	bool task_found = false;
 
-	uint32_t index = os_control.current_task->id + 1;
-	if(index >= os_control.n_tasks)
+	for (uint8_t i = 0; i < PRIORITIES_AMOUNT; ++i)
 	{
-		index = 0;
-	}
+		uint8_t n_tasks_prio = os_control.priorities[i].n_tasks;
 
-	for (uint32_t j = 0; j < os_control.n_tasks; j++)
-	{
-		if((TASK_READY == os_control.tasks_list[index]->status) || (TASK_RUNNING == os_control.tasks_list[index]->status))
+		for (uint8_t j = 0; j < n_tasks_prio; ++j)
 		{
-			retval = os_control.tasks_list[index];
-			break;
+			if (TASK_READY == os_control.priorities[i].tasks_list[j]->status)
+			{
+				retval = os_control.priorities[i].tasks_list[j];
+				task_found = true;
+				break;
+			}
 		}
 
-		index++;
-		if(index >= os_control.n_tasks)
+		if (task_found)
 		{
-			index = 0;
+			break;
+		}
+	}
+
+	if (NULL == retval)
+	{
+		if (TASK_RUNNING == os_control.current_task->status)
+		{
+			retval = os_control.current_task;
+		}
+		else
+		{
+			retval = &idle;
 		}
 	}
 
