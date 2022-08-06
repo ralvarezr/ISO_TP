@@ -127,8 +127,8 @@ int main(void)
 	write_LED3(LOW);
 
 
-	os_task_init(&s_tarea1, tarea1);
-	os_task_init(&s_tarea2, tarea2);
+	os_task_init(&s_tarea1, tarea1, 0);
+	os_task_init(&s_tarea2, tarea2, 0);
 	//os_task_init(&s_tarea3, tarea3);
 
 	os_init();

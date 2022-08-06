@@ -17,6 +17,9 @@
 #define STACK_SIZE	        (256u)          // Tamaño de Stack de cada tarea.
 #define TASK_NAME_SIZE      (256u)
 #define MAX_TASKS_AMOUNT    (8u)            // Cantidad máxima de tareas.
+#define MIN_PRIORITY		(3u)			// Prioridad Mínima.
+#define MAX_PRIORITY		(0u)			// Prioridad Máxima.
+#define PRIORITIES_AMOUNT	(4u)			// Cantidad de Prioridades Implementadas.
 
 /********************** typedef **********************************************/
 
@@ -26,7 +29,8 @@
 typedef enum
 {
         OS_ERROR_GENERAL 		= -1,
-        OS_ERROR_TASKS_COUNT	= -2
+        OS_ERROR_TASKS_COUNT	= -2,
+		OS_ERROR_TASK_PRIORITY	= -3
 }os_error_t;
 
 /****************************************************************************
@@ -56,7 +60,7 @@ struct _task {
         uint32_t stack[STACK_SIZE/4];
         uint32_t stack_pointer;
         void *entry_point;
-        task_status_t status; 
+        task_status_t status;
         uint8_t priority;
         uint8_t id;
         uint32_t ticks_blocked;
@@ -86,7 +90,7 @@ typedef struct _os_control os_control_t;
 /********************** external functions declaration ***********************/
 
 void os_init(void);
-void os_task_init(task_t *task, void *entry_point);
+void os_task_init(task_t *task, void *entry_point, uint8_t priority);
 
 //Funciones de Prueba de estado bloqueado. No seran parte del OS.
 void test_block_task(void);

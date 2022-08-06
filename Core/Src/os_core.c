@@ -211,6 +211,7 @@ void init_idle_task(void)
 	idle.stack_pointer = (uint32_t) (idle.stack + (STACK_SIZE / 4) - AUTO_STACKING_FULL_SIZE);
 	idle.status = TASK_READY;
 	idle.id = 100;
+	idle.priority = 100;
 	idle.entry_point = idle_task;
 
 }
@@ -250,10 +251,18 @@ void os_init(void)
  *
  * @param *task Puntero a la estructura de la tarea.
  * @param *entry_point Puntero a la tarea.
+ * @param priority La prioridad de la tarea. (Entre 0 y 3, siendo 0 la mayor prioridad).
  * @return None.
  ************************************************************************************************/
-void os_task_init(task_t *task, void *entry_point)
+void os_task_init(task_t *task, void *entry_point, uint8_t priority)
 {
+
+	if(MIN_PRIORITY < priority)
+	{
+		os_control.error = OS_ERROR_TASK_PRIORITY;
+		error_hook();
+	}
+
 	static uint32_t tasks_amount = 0;
 
 	if (tasks_amount < MAX_TASKS_AMOUNT)
@@ -274,6 +283,7 @@ void os_task_init(task_t *task, void *entry_point)
 		task->status = TASK_READY;
 		task->id = tasks_amount;
 		task->entry_point = entry_point;
+		task->priority = priority;
 
 		/**
 		 * Actualizo la lista de tareas del OS.
