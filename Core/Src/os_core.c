@@ -85,6 +85,8 @@ static task_t idle;
 static void scheduler(void);
 static void init_idle_task(void);
 static task_t* get_next_task_ready(void);
+static void decrease_ticks_blocked(void);
+static void change_context(void);
 
 /********************** internal data definition *****************************/
 
@@ -107,27 +109,10 @@ static task_t* get_next_task_ready(void);
  ************************************************************************************************/
 __attribute__((weak)) void idle_task(void)
 {
-	//Programa de prueba para la tarea Idle.
-	//Enciden el Led Rojo de la placa nucleo y luego desbloquea las dos tareas bloqueadas.
-	uint32_t j = 0;
-	uint32_t h = 0;
 
 	while(1)
 	{
-		//__WFI();
-		j++;
-		if (j >= 6000000)
-		{
-			toggle_LED3();
-			j = 0;
-			h++;
-			if (h == 4)
-			{
-				test_unblock_task(os_control.priorities[0].tasks_list[0]);
-				test_unblock_task(os_control.priorities[3].tasks_list[0]);
-				h = 0;
-			}
-		}
+		__WFI();
 	}
 }
 
@@ -327,27 +312,23 @@ void SysTick_Handler(void)
 	{
 
 		/**
+		 * Se decrementa el tiempo de delay de las tareas.
+		 */
+
+		decrease_ticks_blocked();
+
+
+		/**
 		 * Se ejecuta el scheduler para determinar cuál es la siguiente tarea a ser ejecutada y
 		 * prepararla para el cambio de contexto.
 		 */
 		scheduler();
 
 		/**
-		 * Se setea el bit correspondiente a la excepcion PendSV
+		 * Cambio de Contexto.
 		 */
-		SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+		change_context();
 
-		/**
-		 * Instruction Synchronization Barrier; flushes the pipeline and ensures that
-		 * all previous instructions are completed before executing new instructions
-		 */
-		__ISB();
-
-		/**
-		 * Data Synchronization Barrier; ensures that all memory accesses are
-		 * completed before next instruction is executed
-		 */
-		__DSB();
 
 		/**
 		 * Antes de salir del SysTick_Handler ejecuto el hook del tick.
@@ -436,7 +417,7 @@ void scheduler(void)
 	 * Si la cantidad de tareas bloqueadas es igual a la cantidad de tareas,
 	 * entonces la siguiente tarea a ejecutar es la tarea idle.
 	 */
-	else if (os_control.n_tasks_blocked == os_control.n_tasks)
+	else if (os_control.n_tasks_blocked >= os_control.n_tasks)
 	{
 		os_control.next_task = &idle;
 	}
@@ -471,11 +452,11 @@ task_t* get_next_task_ready(void)
 	task_t *retval = NULL;
 	bool task_found = false;
 
-	for (uint8_t i = 0; i < PRIORITIES_AMOUNT; ++i)
+	for (uint8_t i = 0; i < PRIORITIES_AMOUNT; i++)
 	{
 		uint8_t n_tasks_prio = os_control.priorities[i].n_tasks;
 
-		for (uint8_t j = 0; j < n_tasks_prio; ++j)
+		for (uint8_t j = 0; j < n_tasks_prio; j++)
 		{
 			if (TASK_READY == os_control.priorities[i].tasks_list[j]->status)
 			{
@@ -506,34 +487,92 @@ task_t* get_next_task_ready(void)
 	return retval;
 }
 
-/***********************************************************************************************************
- * FUNCIONES DE PRUEBA
- ***********************************************************************************************************/
+/************************************************************************************************
+ * @fn void os_task_delay(uint32_t)
+ * @brief Task Delay
+ *
+ * @details
+ * Bloquea la tarea durante el tiempo especificado, llama al scheduler y cambia de contexto.
+ *
+ * @param time Tiempo en milisegundos durante el cual la tarea estará bloqueada.
+ * @return None.
+ ************************************************************************************************/
+void os_task_delay(uint32_t time)
+{
+
+	os_control.current_task->ticks_blocked = time;
+	os_control.current_task->status = TASK_BLOCKED;
+	os_control.n_tasks_blocked++;
+
+	scheduler();
+
+	change_context();
+
+}
 
 /************************************************************************************************
- * @fn void test_block_task(void)
- * @brief
- *  Bloquea la tarea que se está ejecutando y llama al scheduler para cambiar a la siguiente tarea.
+ * @fn void decrease_ticks_blocked(void)
+ * @brief Decrementa el valor de ticks_blocked de todas las tareas.
+ *
+ * @details
+ * Busca todas las tareas que tengan un delay activo y decrementa su valor.
+ * Si el valor llega a 0, entonces la tarea cambia a estado Ready.
+ * Esta función debe ser usada en el SysTick_Handler para que el valor
+ * se reduzca cada 1ms.
  *
  * @param None.
  * @return None.
  ************************************************************************************************/
-void test_block_task(void)
+void decrease_ticks_blocked(void)
 {
-	if(os_control.current_task->status == TASK_RUNNING)
+	for (uint8_t i = 0; i < PRIORITIES_AMOUNT; i++)
 	{
-		os_control.current_task->status = TASK_BLOCKED;
-		os_control.n_tasks_blocked++;
-		scheduler();
+		uint8_t n_tasks_prio = os_control.priorities[i].n_tasks;
+
+		for (uint8_t j = 0; j < n_tasks_prio; j++)
+		{
+			if ((TASK_BLOCKED == os_control.priorities[i].tasks_list[j]->status) && (0 < os_control.priorities[i].tasks_list[j]->ticks_blocked))
+			{
+				os_control.priorities[i].tasks_list[j]->ticks_blocked--;
+				if (0 >= os_control.priorities[i].tasks_list[j]->ticks_blocked)
+				{
+					os_control.priorities[i].tasks_list[j]->status = TASK_READY;
+					os_control.n_tasks_blocked--;
+				}
+			}
+		}
 	}
+
 }
 
-void test_unblock_task(task_t *task)
+/************************************************************************************************
+ * @fn void change_context(void)
+ * @brief Cambio de Contexto.
+ *
+ * @details
+ * Activa la bandera de la excepción PendSV y mantiene la sincronización.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+void change_context(void)
 {
-	if(task != NULL)
-	{
-		task->status = TASK_READY;
-		os_control.n_tasks_blocked--;
-	}
+	/**
+	 * Se setea el bit correspondiente a la excepcion PendSV
+	 */
+	SCB->ICSR |= SCB_ICSR_PENDSVSET_Msk;
+
+	/**
+	 * Instruction Synchronization Barrier; flushes the pipeline and ensures that
+	 * all previous instructions are completed before executing new instructions
+	 */
+	__ISB();
+
+	/**
+	 * Data Synchronization Barrier; ensures that all memory accesses are
+	 * completed before next instruction is executed
+	 */
+	__DSB();
 }
+
 /********************** end of file ******************************************/

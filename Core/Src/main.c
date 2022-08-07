@@ -15,7 +15,7 @@
 
 /*==================[macros and definitions]=================================*/
 
-#define MILLISECOND	(1000u)
+#define MILLISECOND	(100u)
 /*==================[Global data declaration]==============================*/
 
 task_t s_tarea1, s_tarea2, s_tarea3;
@@ -46,27 +46,12 @@ static void hardware_init(void)
 void tarea1(void)
 {
 	//Programa de prueba.
-	//Se bloquea al llegar al numero correspondiente.
-	// Luego de haber sido bloqueada, la tarea idle la desbloquea, pero se vuelve a bloquear
-	// y se mantiene bloqueada.
-	uint32_t i = 0;
-	uint32_t t = 0;
+
 	while (1)
 	{
-		i++;
-		if (i >= 5000000)
-		{
-			toggle_LED1();
-			i = 0;
-			t++;
-			if (t == 10)
-			{
+		toggle_LED1();
+		os_task_delay(500);
 
-				test_block_task();
-				t = 0;
-			}
-
-		}
 	}
 }
 
@@ -75,27 +60,13 @@ void tarea2(void)
 {
 
 	//Programa de prueba.
-	//Se bloquea al llegar al numero correspondiente.
-	// Luego de haber sido bloqueada, la tarea idle la desbloquea, y no se vuelve a bloquear
-	// Se mantiene como la unica tarea sin bloquear.
-	uint32_t j = 0;
-	uint32_t t = 0;
 	while (1)
 	{
-		j++;
-		if (j >= 6000000)
-		{
-			toggle_LED2();
-			j = 0;
-			t++;
-			if (t == 20)
-			{
-				test_block_task();
-				t = 0;
-			}
-		}
+		toggle_LED2();
+		os_task_delay(2000);
 	}
 }
+
 /*
 void tarea3(void)
 {
@@ -125,6 +96,8 @@ int main(void)
 	write_LED1(LOW);
 	write_LED2(LOW);
 	write_LED3(LOW);
+
+
 
 
 	os_task_init(&s_tarea1, tarea1, 0);

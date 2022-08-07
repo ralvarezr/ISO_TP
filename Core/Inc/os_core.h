@@ -84,15 +84,13 @@ typedef struct _priority priority_t;
  ****************************************************************************/
 struct _os_control {
         os_status_t system_status; 
-        bool schedulerIRQ;              	// scheduling al volver de IRQ
+        bool schedulerIRQ;              				// Scheduling al volver de IRQ
         task_t *current_task;
         task_t *next_task;
         os_error_t error;
-        priority_t priorities[PRIORITIES_AMOUNT];
+        priority_t priorities[PRIORITIES_AMOUNT];		// Lista de prioridades.
         uint32_t n_tasks;
-        uint32_t n_tasks_blocked;			// Cantidad de tareas bloqueadas.
-
-       // task_t *tasks_list[MAX_TASKS_AMOUNT]; // ******** BORRAR ********
+        uint32_t n_tasks_blocked;						// Cantidad de tareas bloqueadas.
 };
 
 typedef struct _os_control os_control_t;
@@ -103,9 +101,9 @@ typedef struct _os_control os_control_t;
 
 void os_init(void);
 void os_task_init(task_t *task, void *entry_point, uint8_t priority);
+void os_task_delay(uint32_t time);
 
 //Funciones de Prueba de estado bloqueado. No seran parte del OS.
-void test_block_task(void);
 void test_unblock_task(task_t *task);
 
 
