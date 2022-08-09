@@ -65,7 +65,6 @@
 #define R11_POS		17
 
 /************	DEFINCIONES VARIAS	***************/
-#define MAX_TASKS_AMOUNT    (8u)            // Cantidad máxima de tareas.
 #define MIN_PRIORITY		(3u)			// Prioridad Mínima.
 #define MAX_PRIORITY		(0u)			// Prioridad Máxima.
 #define PRIORITIES_AMOUNT	(4u)			// Cantidad de Prioridades Implementadas.
@@ -548,7 +547,7 @@ task_t* get_next_task_ready(void)
  * @param time Tiempo en milisegundos durante el cual la tarea estará bloqueada.
  * @return None.
  ************************************************************************************************/
-void os_task_delay(uint32_t time)
+void task_delay(uint32_t time)
 {
 
 	os_control.current_task->ticks_blocked = time;
@@ -624,6 +623,110 @@ void change_context(void)
 	 * completed before next instruction is executed
 	 */
 	__DSB();
+}
+
+/**
+ * @fn void semaphore_init(semaphore_t)
+ * @brief Inicializa un semáforo.
+ *
+ * @details
+ * Inicializa el semáforo tomándolo.
+ * El semáforo debe ser entregado antes de poder usarse.
+ *
+ * @param *semaphore Puntero al semáforo.
+ * @return None.
+ */
+void semaphore_init(semaphore_t *semaphore)
+{
+	semaphore->taken = true;
+	semaphore->task_taken = NULL;
+	semaphore->n_tasks_blocked = 0;
+
+	for (uint8_t i = 0; i < MAX_TASKS_AMOUNT; i++)
+	{
+		semaphore->tasks_blocked[i] = NULL;
+	}
+}
+
+/**
+ * @fn void semaphore_take(semaphore_t)
+ * @brief Toma el semáforo.
+ *
+ * @details
+ * Toma el semáforo.
+ * Si el semáforo ya estaba tomado, bloquea la tarea que intentó tomarlo y la deja
+ * dentro de un ciclo while para que cuando el semáforo se entregue, la función bloqueada
+ * reanude su ejecución desde este punto y pueda tomar el semáforo.
+ *
+ * @param *semaphore Puntero al semáforo.
+ * @return None.
+ */
+void semaphore_take(semaphore_t *semaphore)
+{
+
+	bool exit_while = false;
+
+	while (!exit_while)
+	{
+
+		if((semaphore->taken) && (semaphore->task_taken != os_control.current_task))
+		{
+			os_control.current_task->status = TASK_BLOCKED;
+			os_control.n_tasks_blocked++;
+
+			semaphore->tasks_blocked[semaphore->n_tasks_blocked++] = os_control.current_task;
+
+			scheduler();
+
+			change_context();
+		}
+		else
+		{
+			semaphore->taken = true;
+			semaphore->task_taken = os_control.current_task;
+			exit_while = true;
+
+		}
+	}
+}
+
+/**
+ * @fn void semaphore_give(semaphore_t)
+ * @brief Entrega el semáforo.
+ *
+ * @details
+ * Entrega el semáforo dejándolo libre para ser tomado nuevamente.
+ * El semáforo se desbloquea solo cuando haya sido bloqueado previamente,
+ * y cuando la tarea que ejecuta la función está corriendo.
+ * Si el semáforo había bloqueado una tarea previamente, la desbloquea.
+ *
+ * @param *semaphore Puntero al semáforo.
+ * @return None.
+ */
+void semaphore_give(semaphore_t *semaphore)
+{
+
+	if (semaphore->taken && TASK_RUNNING == os_control.current_task->status)
+	{
+
+		uint8_t n = semaphore->n_tasks_blocked;
+
+		for (uint8_t i = 0; i < n; i++)
+		{
+			if (NULL != semaphore->tasks_blocked[i])
+			{
+				semaphore->tasks_blocked[i]->status = TASK_READY;
+				semaphore->tasks_blocked[i] = NULL;
+
+				semaphore->n_tasks_blocked--;
+				os_control.n_tasks_blocked--;
+			}
+		}
+
+		semaphore->taken = false;
+		semaphore->task_taken = NULL;
+	}
+
 }
 
 /********************** end of file ******************************************/

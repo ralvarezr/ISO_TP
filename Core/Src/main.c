@@ -20,6 +20,8 @@
 
 task_t s_tarea1, s_tarea2, s_tarea3;
 
+semaphore_t sem;
+
 
 /*==================[internal functions declaration]=========================*/
 
@@ -45,36 +47,87 @@ static void hardware_init(void)
 
 void tarea1(void)
 {
+	semaphore_give(&sem);
 	//Programa de prueba.
 
 	while (1)
 	{
-		toggle_LED1();
-		os_task_delay(2000);
+		task_delay(2000);
 
+		semaphore_take(&sem);
+		{
+
+			toggle_LED1();
+
+			task_delay(500);
+
+			toggle_LED1();
+
+			task_delay(500);
+
+			toggle_LED1();
+
+			task_delay(5000);
+		}
+		semaphore_give(&sem);
 	}
 }
 
 
 void tarea2(void)
 {
-
+	semaphore_give(&sem);
 	//Programa de prueba.
 	while (1)
 	{
-		toggle_LED2();
-		os_task_delay(1000);
+		task_delay(3000);
+
+		semaphore_take(&sem);
+		{
+
+			toggle_LED2();
+
+			task_delay(500);
+
+			toggle_LED2();
+
+			task_delay(500);
+
+			toggle_LED2();
+
+			task_delay(5000);
+		}
+		semaphore_give(&sem);
+
 	}
 }
 
 void tarea3(void)
 {
-
+	semaphore_give(&sem);
 	//Programa de prueba.
 	while (1)
 	{
-		toggle_LED3();
-		os_task_delay(500);
+		task_delay(1000);
+
+		semaphore_take(&sem);
+		{
+
+			toggle_LED3();
+
+			task_delay(500);
+
+			toggle_LED3();
+
+			task_delay(500);
+
+			toggle_LED3();
+
+			task_delay(5000);
+
+		}
+		semaphore_give(&sem);
+
 	}
 }
 
@@ -91,14 +144,15 @@ int main(void)
 	write_LED2(LOW);
 	write_LED3(LOW);
 
-
-
-
 	os_task_init(&s_tarea1, tarea1, 0);
 	os_task_init(&s_tarea2, tarea2, 0);
-	os_task_init(&s_tarea3, tarea3, 0);
+	os_task_init(&s_tarea3, tarea3, 3);
+
+	semaphore_init(&sem);
 
 	os_init();
+
+
 
 
 	while (1)
