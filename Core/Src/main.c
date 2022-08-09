@@ -50,7 +50,7 @@ void tarea1(void)
 	while (1)
 	{
 		toggle_LED1();
-		os_task_delay(500);
+		os_task_delay(2000);
 
 	}
 }
@@ -63,26 +63,20 @@ void tarea2(void)
 	while (1)
 	{
 		toggle_LED2();
-		os_task_delay(2000);
+		os_task_delay(1000);
 	}
 }
 
-/*
 void tarea3(void)
 {
 
-	uint32_t k = 0;
+	//Programa de prueba.
 	while (1)
 	{
-		k++;
-		if (k >= 700000)
-		{
-			toggle_LED3();
-			k = 0;
-		}
+		toggle_LED3();
+		os_task_delay(500);
 	}
 }
-*/
 
 /*============================================================================*/
 
@@ -101,8 +95,8 @@ int main(void)
 
 
 	os_task_init(&s_tarea1, tarea1, 0);
-	os_task_init(&s_tarea2, tarea2, 3);
-	//os_task_init(&s_tarea3, tarea3);
+	os_task_init(&s_tarea2, tarea2, 0);
+	os_task_init(&s_tarea3, tarea3, 0);
 
 	os_init();
 

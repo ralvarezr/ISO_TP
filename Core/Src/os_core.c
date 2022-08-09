@@ -65,10 +65,61 @@
 #define R11_POS		17
 
 /************	DEFINCIONES VARIAS	***************/
+#define MAX_TASKS_AMOUNT    (8u)            // Cantidad máxima de tareas.
+#define MIN_PRIORITY		(3u)			// Prioridad Mínima.
+#define MAX_PRIORITY		(0u)			// Prioridad Máxima.
+#define PRIORITIES_AMOUNT	(4u)			// Cantidad de Prioridades Implementadas.
 #define EXEC_RETURN 			(0xFFFFFFF9)
 #define AUTO_STACKING_SIZE		(8u)
 #define AUTO_STACKING_FULL_SIZE	(17u)
 #define IDLE_PRIORITY			(100u)
+
+/****************************************************************************
+ *  Estructura de las prioridades.
+ ****************************************************************************/
+struct _priority {
+        task_t *tasks_list[MAX_TASKS_AMOUNT];
+        uint8_t n_tasks;
+};
+
+typedef struct _priority priority_t;
+
+/****************************************************************************
+ *  Estados del OS.
+ ****************************************************************************/
+typedef enum
+{
+		OS_BOOTING,
+        OS_FRESH,
+        OS_RUNNING
+} os_status_t;
+
+/****************************************************************************
+ *  Errores del OS.
+ ****************************************************************************/
+typedef enum
+{
+        OS_ERROR_GENERAL 		= -1,
+        OS_ERROR_TASKS_COUNT	= -2,
+		OS_ERROR_TASK_PRIORITY	= -3
+}os_error_t;
+
+
+/****************************************************************************
+ *  Estructura de control interna de OS.
+ ****************************************************************************/
+struct _os_control {
+        os_status_t system_status;
+        bool schedulerIRQ;              				// Scheduling al volver de IRQ
+        task_t *current_task;
+        task_t *next_task;
+        os_error_t error;
+        priority_t priorities[PRIORITIES_AMOUNT];		// Lista de prioridades.
+        uint32_t n_tasks;
+        uint32_t n_tasks_blocked;						// Cantidad de tareas bloqueadas.
+};
+
+typedef struct _os_control os_control_t;
 
 /********************** internal data declaration ****************************/
 static os_control_t os_control = {
