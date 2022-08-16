@@ -152,9 +152,6 @@ int main(void)
 
 	os_init();
 
-
-
-
 	while (1)
 	{
 

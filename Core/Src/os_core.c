@@ -554,9 +554,7 @@ void task_delay(uint32_t time)
 	os_control.current_task->status = TASK_BLOCKED;
 	os_control.n_tasks_blocked++;
 
-	scheduler();
-
-	change_context();
+	os_cpu_yield();
 
 }
 
@@ -625,7 +623,7 @@ void change_context(void)
 	__DSB();
 }
 
-/**
+/************************************************************************************************
  * @fn void semaphore_init(semaphore_t)
  * @brief Inicializa un semáforo.
  *
@@ -635,7 +633,7 @@ void change_context(void)
  *
  * @param *semaphore Puntero al semáforo.
  * @return None.
- */
+ ************************************************************************************************/
 void semaphore_init(semaphore_t *semaphore)
 {
 	semaphore->taken = true;
@@ -648,7 +646,7 @@ void semaphore_init(semaphore_t *semaphore)
 	}
 }
 
-/**
+/************************************************************************************************
  * @fn void semaphore_take(semaphore_t)
  * @brief Toma el semáforo.
  *
@@ -660,7 +658,7 @@ void semaphore_init(semaphore_t *semaphore)
  *
  * @param *semaphore Puntero al semáforo.
  * @return None.
- */
+ ************************************************************************************************/
 void semaphore_take(semaphore_t *semaphore)
 {
 
@@ -676,9 +674,7 @@ void semaphore_take(semaphore_t *semaphore)
 
 			semaphore->tasks_blocked[semaphore->n_tasks_blocked++] = os_control.current_task;
 
-			scheduler();
-
-			change_context();
+			os_cpu_yield();
 		}
 		else
 		{
@@ -690,7 +686,7 @@ void semaphore_take(semaphore_t *semaphore)
 	}
 }
 
-/**
+/************************************************************************************************
  * @fn void semaphore_give(semaphore_t)
  * @brief Entrega el semáforo.
  *
@@ -702,7 +698,7 @@ void semaphore_take(semaphore_t *semaphore)
  *
  * @param *semaphore Puntero al semáforo.
  * @return None.
- */
+ ************************************************************************************************/
 void semaphore_give(semaphore_t *semaphore)
 {
 
@@ -727,6 +723,23 @@ void semaphore_give(semaphore_t *semaphore)
 		semaphore->task_taken = NULL;
 	}
 
+}
+
+/************************************************************************************************
+ * @fn void os_cpu_yield(void)
+ * @brief Esta función entrega el CPU a la siguiente tarea.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+void os_cpu_yield(void)
+{
+	scheduler();
+
+	if (TASK_BLOCKED == os_control.current_task->status)
+	{
+		change_context();
+	}
 }
 
 /********************** end of file ******************************************/
