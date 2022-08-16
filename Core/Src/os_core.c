@@ -550,11 +550,19 @@ task_t* get_next_task_ready(void)
 void task_delay(uint32_t time)
 {
 
-	os_control.current_task->ticks_blocked = time;
-	os_control.current_task->status = TASK_BLOCKED;
-	os_control.n_tasks_blocked++;
+	if(time > 0)
+	{
 
-	os_cpu_yield();
+		os_enter_critical();
+		{
+			os_control.current_task->ticks_blocked = time;
+			os_control.current_task->status = TASK_BLOCKED;
+			os_control.n_tasks_blocked++;
+		}
+		os_exit_critical();
+
+		os_cpu_yield();
+	}
 
 }
 
@@ -740,6 +748,36 @@ void os_cpu_yield(void)
 	{
 		change_context();
 	}
+}
+
+/************************************************************************************************
+ * @fn void os_enter_critical(void)
+ * @brief Ingreso a sección crítica.
+ *
+ * @details
+ * Se dehabilitan todas las interrupciones.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+void os_enter_critical(void)
+{
+	__disable_irq();
+}
+
+/************************************************************************************************
+ * @fn void os_exit_critical(void)
+ * @brief Salida de sección crítica.
+ *
+ * @details
+ * Se habilitan todas las interrupciones.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+void os_exit_critical(void)
+{
+	__enable_irq();
 }
 
 /********************** end of file ******************************************/

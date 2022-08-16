@@ -66,6 +66,8 @@ typedef struct _semaphore semaphore_t;
 void os_init(void);
 void os_task_init(task_t *task, void *entry_point, uint8_t priority);
 void os_cpu_yield(void);
+void os_enter_critical(void);
+void os_exit_critical(void);
 
 void task_delay(uint32_t time);
 
