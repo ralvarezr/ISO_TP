@@ -51,6 +51,8 @@ PendSV_Handler:
 	* se hace el push de los registros de FPU restantes
 	*/
 
+	cpsid i					// Se desactivan todas las interrupciones.
+
 	tst lr,0x10
 	it eq
 	vpusheq {s16-s31}
@@ -70,6 +72,8 @@ PendSV_Handler:
 	tst lr,0x10
 	it eq
 	vpopeq {s16-s31}
+
+	cpsie i					//Se vuelven a activar las interrupciones.
 
 	bx lr					//se hace un branch indirect con el valor de LR que es nuevamente EXEC_RETURN
 
