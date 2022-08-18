@@ -20,9 +20,9 @@
 
 task_t s_tarea1, s_tarea2, s_tarea3;
 
-semaphore_t sem;
+semaphore_t sem1, sem2;
 
-
+queue_t cola;
 /*==================[internal functions declaration]=========================*/
 
 /*==================[internal data definition]===============================*/
@@ -45,63 +45,57 @@ static void hardware_init(void)
 
 /*==================[Definicion de tareas para el OS]==========================*/
 
+
 void tarea1(void)
 {
-	semaphore_give(&sem);
+	uint32_t val = 0;
+	semaphore_give(&sem1);
 	//Programa de prueba.
 
 	while (1)
 	{
-		task_delay(2000);
-
-		semaphore_take(&sem);
+		semaphore_take(&sem1);
 		{
 
 			toggle_LED1();
 
-			task_delay(500);
-
-			toggle_LED1();
-
-			task_delay(500);
-
-			toggle_LED1();
-
-			task_delay(5000);
 		}
-		semaphore_give(&sem);
+		semaphore_give(&sem1);
+
+		task_delay(500);
+
+		queue_send(&cola, val++);
+
+
 	}
 }
 
 
 void tarea2(void)
 {
-	semaphore_give(&sem);
+	uint32_t buffer;
+	semaphore_give(&sem2);
+
 	//Programa de prueba.
 	while (1)
 	{
-		task_delay(3000);
 
-		semaphore_take(&sem);
+		queue_receive(&cola, &buffer);
+
+		semaphore_take(&sem2);
 		{
 
 			toggle_LED2();
 
-			task_delay(500);
-
-			toggle_LED2();
-
-			task_delay(500);
-
-			toggle_LED2();
-
-			task_delay(5000);
 		}
-		semaphore_give(&sem);
+		semaphore_give(&sem2);
 
+
+		task_delay(2500);
 	}
 }
 
+/*
 void tarea3(void)
 {
 	semaphore_give(&sem);
@@ -128,8 +122,10 @@ void tarea3(void)
 		}
 		semaphore_give(&sem);
 
+		queue_send(&cola, 5u);
+
 	}
-}
+}*/
 
 /*============================================================================*/
 
@@ -146,9 +142,12 @@ int main(void)
 
 	os_task_init(&s_tarea1, tarea1, 0);
 	os_task_init(&s_tarea2, tarea2, 0);
-	os_task_init(&s_tarea3, tarea3, 3);
+	//os_task_init(&s_tarea3, tarea3, 3);
 
-	semaphore_init(&sem);
+	semaphore_init(&sem1);
+	semaphore_init(&sem2);
+
+	queue_create(&cola, 1);
 
 	os_init();
 
@@ -156,6 +155,8 @@ int main(void)
 	{
 
 	}
+
+	queue_delete(&cola);
 
 	return 0;
 }

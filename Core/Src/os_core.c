@@ -41,7 +41,6 @@
 #include "stm32f429xx.h"
 #include <stddef.h>
 
-#include "GPIO.h" //**************PRUEBA******************
 
 /********************** macros and definitions *******************************/
 
@@ -779,5 +778,163 @@ void os_exit_critical(void)
 {
 	__enable_irq();
 }
+
+/************************************************************************************************
+ * @fn void queue_create(queue_t, uint8_t)
+ * @brief Crea la cola.
+ *
+ * @param queue Cola a crear.
+ * @param lenght Tamaño de la cola.
+ * @return true si se pudo crear, false en caso contrario.
+ ************************************************************************************************/
+bool queue_create(queue_t *queue, uint8_t lenght)
+{
+	queue->list = lista_crear();
+	if(NULL == queue->list)
+	{
+		return false;
+	}
+
+	queue->max_size = lenght;
+
+	return true;
+}
+
+/************************************************************************************************
+ * @fn void queue_receive(queue_t, uint32_t*)
+ * @brief Devuelve por el buffer un elemento de la cola. En caso de que la cola esté vacía,
+ * la tarea se bloquea hasta que se pueda devolver un elemento.
+ *
+ * @param *queue Cola de donde se obtendrá el elemento.
+ * @param *buffer Buffer sobre donde se devolverá el elemento.
+ * @return None.
+ ************************************************************************************************/
+void queue_receive(queue_t *queue, uint32_t *buffer)
+{
+	bool exit_while = false;
+
+	/**
+	 * Se entra en un while en donde se evalua si la cola está vacía o no.
+	 * En caso de que esté vacía, la tarea se bloquea y espera a que sea desbloqueada
+	 * desde la función queue_send. De esta manera, puede obtener el dato de la cola y desbloquear
+	 * la tarea que haya sido bloqueada intentando ingresar un dato en la cola llena.
+	 */
+
+	while (!exit_while)
+	{
+
+		if (lista_vacia(queue->list))
+		{
+			os_enter_critical();
+			{
+				os_control.current_task->status = TASK_BLOCKED;
+				os_control.n_tasks_blocked++;
+
+			}
+			os_exit_critical();
+
+			queue->task_blocked_recv = os_control.current_task;
+
+			os_cpu_yield();
+
+		}
+		else
+		{
+			lista_desencolar(queue->list, buffer);
+
+			exit_while = true;
+
+			if (NULL != queue->task_blocked_send)
+			{
+				queue->task_blocked_send->status = TASK_READY;
+				queue->task_blocked_send = NULL;
+
+				os_enter_critical();
+				{
+					os_control.n_tasks_blocked--;
+				}
+				os_exit_critical();
+			}
+
+		}
+	}
+}
+
+/************************************************************************************************
+ * @fn void queue_send(queue_t, uint32_t)
+ * @brief Enviar un elemento a la cola. En caso de la cola estar full, la tarea se bloquea
+ * hasta que elemento pueda ser agregado.
+ *
+ * @param queue Cola sobre la cual se agregará el elemento.
+ * @param element Elemento a agregar.
+ * @return None.
+ ************************************************************************************************/
+void queue_send(queue_t *queue, uint32_t element)
+{
+
+	bool exit_while = false;
+
+	/**
+	 * Se entra en un while en donde se evalua si la cola está llena o no.
+	 * En caso de que esté llena, la tarea se bloquea y espera a que sea desbloqueada
+	 * desde la función queue_receive. De esta manera puede enviar el dato a la cola y desbloquear
+	 * la tarea que haya sido bloqueada intentando obtener un dato de la cola vacía.
+	 */
+
+	while (!exit_while)
+	{
+
+		if (queue->max_size == lista_elementos(queue->list))
+		{
+			os_enter_critical();
+			{
+				os_control.current_task->status = TASK_BLOCKED;
+				os_control.n_tasks_blocked++;
+
+			}
+			os_exit_critical();
+
+			queue->task_blocked_send = os_control.current_task;
+
+			os_cpu_yield();
+
+		}
+		else
+		{
+			lista_encolar(queue->list, element);
+
+			exit_while = true;
+
+			if (NULL != queue->task_blocked_recv)
+			{
+				queue->task_blocked_recv->status = TASK_READY;
+				queue->task_blocked_recv = NULL;
+
+				os_enter_critical();
+				{
+					os_control.n_tasks_blocked--;
+				}
+				os_exit_critical();
+			}
+
+		}
+	}
+}
+
+/************************************************************************************************
+ * @fn void queue_delete(queue_t)
+ * @brief Destruye la cola.
+ *
+ * @param queue Cola a destruir.
+ * @return None.
+ ************************************************************************************************/
+void queue_delete(queue_t *queue)
+{
+	lista_destruir(queue->list);
+
+	queue->list = NULL;
+	queue->max_size = 0;
+}
+
 
 /********************** end of file ******************************************/
