@@ -43,6 +43,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "list.h"
+#include "os_irq.h"
 
 /********************** macros ***********************************************/
 
@@ -61,6 +62,17 @@ typedef enum
         TASK_RUNNING,
         TASK_BLOCKED
 }task_status_t;
+
+/****************************************************************************
+ *  Estados del OS.
+ ****************************************************************************/
+typedef enum
+{
+		OS_BOOTING,
+        OS_FRESH,
+        OS_RUNNING,
+		OS_IRQ
+} os_status_t;
 
 
 /****************************************************************************
@@ -113,6 +125,9 @@ void os_task_init(task_t *task, void *entry_point, uint8_t priority);
 void os_cpu_yield(void);
 void os_enter_critical(void);
 void os_exit_critical(void);
+bool os_get_schedulerIRQ_state(void);
+void os_unset_schedulerIRQ(void);
+
 
 void task_delay(uint32_t time);
 

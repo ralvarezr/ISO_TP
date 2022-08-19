@@ -83,23 +83,14 @@ struct _priority {
 typedef struct _priority priority_t;
 
 /****************************************************************************
- *  Estados del OS.
- ****************************************************************************/
-typedef enum
-{
-		OS_BOOTING,
-        OS_FRESH,
-        OS_RUNNING
-} os_status_t;
-
-/****************************************************************************
  *  Errores del OS.
  ****************************************************************************/
 typedef enum
 {
         OS_ERROR_GENERAL 		= -1,
         OS_ERROR_TASKS_COUNT	= -2,
-		OS_ERROR_TASK_PRIORITY	= -3
+		OS_ERROR_TASK_PRIORITY	= -3,
+		OS_ERROR_IRQ			= -4
 }os_error_t;
 
 
@@ -215,10 +206,20 @@ __attribute__((weak)) void return_hook(void)
  ************************************************************************************************/
 __attribute__((weak)) void error_hook(void)
 {
+
+	/**
+	 * Al entrar al error hook se deben desactivar las interrupciones para que no salga de este estado
+	 * por una interrupción.
+	 */
+
+	os_enter_critical();
+
 	while(1)
 	{
 
 	}
+
+	os_exit_critical();
 }
 
 /************************************************************************************************
@@ -549,6 +550,17 @@ task_t* get_next_task_ready(void)
 void task_delay(uint32_t time)
 {
 
+	/**
+	 * Si se entra a un Delay desde una IRQ
+	 * el OS va a un estado de error para indicar al usuario
+	 * que esto no debería suceder.
+	 */
+	if (OS_IRQ == os_control.system_status)
+	{
+		os_control.error = OS_ERROR_IRQ;
+		error_hook();
+	}
+
 	if(time > 0)
 	{
 
@@ -676,6 +688,17 @@ void semaphore_take(semaphore_t *semaphore)
 
 		if((semaphore->taken) && (semaphore->task_taken != os_control.current_task))
 		{
+
+			/**
+			 * Si se intentó tomar un semaforo ya tomado desde una interrupción
+			 * el OS va al error hook.
+			 */
+			if (OS_IRQ == os_control.system_status)
+			{
+				os_control.error = OS_ERROR_IRQ;
+				error_hook();
+			}
+
 			os_control.current_task->status = TASK_BLOCKED;
 			os_control.n_tasks_blocked++;
 
@@ -709,7 +732,7 @@ void semaphore_take(semaphore_t *semaphore)
 void semaphore_give(semaphore_t *semaphore)
 {
 
-	if (semaphore->taken && TASK_RUNNING == os_control.current_task->status)
+	if ((semaphore->taken) && (TASK_RUNNING == os_control.current_task->status))
 	{
 
 		uint8_t n = semaphore->n_tasks_blocked;
@@ -728,6 +751,17 @@ void semaphore_give(semaphore_t *semaphore)
 
 		semaphore->taken = false;
 		semaphore->task_taken = NULL;
+
+		/**
+		 * Si se entregó el semáforo exitosamente desde una interrupción, entonces
+		 * el OS debe hacer un re-scheduling para poder ejecutar la tarea que
+		 * estaba bloqueada esperando por el semáforo.
+		 */
+		if (OS_IRQ == os_control.system_status)
+		{
+			os_control.schedulerIRQ = true;
+		}
+
 	}
 
 }
@@ -743,7 +777,11 @@ void os_cpu_yield(void)
 {
 	scheduler();
 
-	if (TASK_BLOCKED == os_control.current_task->status)
+	/***
+	 * Debe cambiarse de contexto luego de que se corra el scheduler cuando la tarea
+	 * actual está bloqueada, o si es llamado desde el handler de las IRQ.
+	 */
+	if ((TASK_BLOCKED == os_control.current_task->status) || (true == os_control.schedulerIRQ))
 	{
 		change_context();
 	}
@@ -825,6 +863,17 @@ void queue_receive(queue_t *queue, uint32_t *buffer)
 
 		if (lista_vacia(queue->list))
 		{
+
+			/**
+			 * Si se intenta recibir de una cola desde una interrupción y la cola
+			 * estaba vacía, se manda el OS al error hook ya que esto no debería suceder.
+			 */
+			if (OS_IRQ == os_control.system_status)
+			{
+				os_control.error = OS_ERROR_IRQ;
+				error_hook();
+			}
+
 			os_enter_critical();
 			{
 				os_control.current_task->status = TASK_BLOCKED;
@@ -854,6 +903,17 @@ void queue_receive(queue_t *queue, uint32_t *buffer)
 					os_control.n_tasks_blocked--;
 				}
 				os_exit_critical();
+
+				/**
+				 * Si se desencoló un dato exitosamente desde una interrupción, entonces
+				 * el OS debe hacer un re-scheduling para poder ejecutar la tarea que
+				 * esté bloqueada esperando para enviar el dato a la cola.
+				 */
+				if (OS_IRQ == os_control.system_status)
+				{
+					os_control.schedulerIRQ = true;
+				}
+
 			}
 
 		}
@@ -886,6 +946,17 @@ void queue_send(queue_t *queue, uint32_t element)
 
 		if (queue->max_size == lista_elementos(queue->list))
 		{
+
+			/**
+			 * Si se intenta enviar a una cola desde una interrupción y la cola
+			 * estaba llena, se manda el OS al error hook ya que esto no debería suceder.
+			 */
+			if (OS_IRQ == os_control.system_status)
+			{
+				os_control.error = OS_ERROR_IRQ;
+				error_hook();
+			}
+
 			os_enter_critical();
 			{
 				os_control.current_task->status = TASK_BLOCKED;
@@ -915,8 +986,18 @@ void queue_send(queue_t *queue, uint32_t element)
 					os_control.n_tasks_blocked--;
 				}
 				os_exit_critical();
-			}
 
+				/**
+				 * Si se encoló un dato exitosamente desde una interrupción, entonces
+				 * el OS debe hacer un re-scheduling para poder ejecutar la tarea que
+				 * esté bloqueada esperando por el dato encolado en la interrupción.
+				 */
+				if (OS_IRQ == os_control.system_status)
+				{
+					os_control.schedulerIRQ = true;
+				}
+
+			}
 		}
 	}
 }
@@ -934,6 +1015,30 @@ void queue_delete(queue_t *queue)
 
 	queue->list = NULL;
 	queue->max_size = 0;
+}
+
+/************************************************************************************************
+ * @fn bool os_get_schedulerIRQ_state(void)
+ * @brief Devuelve el estado de la bandera schedulerIRQ
+ *
+ * @param None.
+ * @return Estado de la bandera schedulerIRQ.
+ ************************************************************************************************/
+bool os_get_schedulerIRQ_state(void)
+{
+	return os_control.schedulerIRQ;
+}
+
+/************************************************************************************************
+ * @fn void os_unset_schedulerIRQ(void)
+ * @brief Cambia la bandera schedulerIRQ a estado false.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+void os_unset_schedulerIRQ(void)
+{
+	os_control.schedulerIRQ = false;
 }
 
 
