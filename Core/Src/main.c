@@ -19,9 +19,9 @@
 #define MILLISECOND	(100u)
 
 /*==================[Global data declaration]==============================*/
-task_t s_tarea_led, s_tarea_uart;
+task_t s_tarea_led_verde, s_tarea_led_rojo, s_tarea_led_azul, s_tarea_uart;
 
-semaphore_t sem1, sem2;
+semaphore_t sem1, sem2, sem3;
 
 queue_t cola;
 /*==================[internal functions declaration]=========================*/
@@ -88,13 +88,13 @@ void tarea_uart(void)
 
 
 /**
- * @fn void tarea_led(void)
- * @brief Hace un toggle de Led 1 cada un 1 segundo.
+ * @fn void tarea_led_verde(void)
+ * @brief Hace un toggle del Led 1 (Verde) cada un 0.5 segundo.
  *
  * @param None.
  * @return None.
  */
-void tarea_led(void)
+void tarea_led_verde(void)
 {
 
 	semaphore_give(&sem1);
@@ -108,7 +108,57 @@ void tarea_led(void)
 			semaphore_give(&sem1);
 		}
 
+		task_delay(500);
+	}
+}
+
+/**
+ * @fn void tarea_led_rojo(void)
+ * @brief Hace un toggle del Led 2 (Rojo) cada un 1 segundo.
+ *
+ * @param None.
+ * @return None.
+ */
+void tarea_led_rojo(void)
+{
+
+	semaphore_give(&sem2);
+
+	while(1)
+	{
+		semaphore_take(&sem2);
+		{
+			toggle_LED2();
+
+			semaphore_give(&sem2);
+		}
+
 		task_delay(1000);
+	}
+}
+
+/**
+ * @fn void tarea_led_azul(void)
+ * @brief Hace un toggle del Led 3 (Azul) cada un 1.5 segundo.
+ *
+ * @param None.
+ * @return None.
+ */
+void tarea_led_azul(void)
+{
+
+	semaphore_give(&sem3);
+
+	while(1)
+	{
+		semaphore_take(&sem3);
+		{
+			toggle_LED3();
+
+			semaphore_give(&sem3);
+		}
+
+		task_delay(1500);
 	}
 }
 
@@ -164,12 +214,16 @@ int main(void)
 	 * Se inicializan las dos tareas a ejecutar.
 	 */
 	os_task_init(&s_tarea_uart, tarea_uart, 0);
-	os_task_init(&s_tarea_led, tarea_led, 0);
+	os_task_init(&s_tarea_led_verde, tarea_led_verde, 3);
+	os_task_init(&s_tarea_led_rojo, tarea_led_rojo, 3);
+	os_task_init(&s_tarea_led_azul, tarea_led_azul, 3);
 
 	/**
-	 * Se inicializa el semáforo para encender el Led 1.
+	 * Se inicializan los semáforos para encender los leds.
 	 */
 	semaphore_init(&sem1);
+	semaphore_init(&sem2);
+	semaphore_init(&sem3);
 
 	/**
 	 * Se crea la cola que envia datos desde la interrupción a la tarea de uart.
