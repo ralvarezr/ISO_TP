@@ -29,6 +29,7 @@ void INT_Init(void)
 void INT_Clean_Int(void)
 {
 	EXTI->PR |= (EXTI_PR_PR13);
+	NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
 }
 
 /*

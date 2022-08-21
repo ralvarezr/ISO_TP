@@ -68,6 +68,16 @@ void USART_Tx(char data){
 	USART3->DR = (data & 0xFF);//1FF
 }
 
+void USART_Tx_String(char *string)
+{
+	uint8_t i = 0;
+
+	while(string[i])
+	{
+		USART_Tx(string[i++]);
+	}
+}
+
 char USART_Rx(void)
 {
 	while((USART3->SR & USART_SR_RXNE) == 0);

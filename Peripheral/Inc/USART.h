@@ -26,6 +26,8 @@ char USART_Rx(void);
 
 void USART_Tx(char data);
 
+void USART_Tx_String(char *string);
+
 /**/
 void USART_Tx_Int(void);
 
