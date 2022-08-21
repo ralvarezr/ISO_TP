@@ -193,11 +193,14 @@ int main(void)
 {
 
 	/**
-	 * Este programa ejecuta 2 tareas. Una para encender el Led 1 cada 1s,
-	 * y otra la cual está esperando un dato desde una cola para imprimirlo.
+	 * Este programa ejecuta 4 tareas.
+	 * Una para encender el Led 1 (verde) cada 0.5 s,
+	 * otra para encender el Led 2 (rojo) cada 1 s,
+	 * otra para encender el Led 3 (azul) cada 1.5 s,
+	 * y otra la cual espera un dato desde una cola para imprimirlo.
 	 *
 	 * El dato que va a la cola se genera desde la interrupción de botón de la placa.
-	 * Esta interrupción lleva el conteo de cuántes veces ha sucedido.
+	 * Esta interrupción lleva el conteo de cuántas veces ha sucedido.
 	 */
 
 	/**
