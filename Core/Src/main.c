@@ -214,7 +214,7 @@ int main(void)
 	INT_Init();
 
 	/**
-	 * Se inicializan las dos tareas a ejecutar.
+	 * Se inicializan las cuatro tareas a ejecutar.
 	 */
 	os_task_init(&s_tarea_uart, tarea_uart, 0);
 	os_task_init(&s_tarea_led_verde, tarea_led_verde, 3);
