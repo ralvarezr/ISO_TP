@@ -90,9 +90,20 @@ typedef enum
         OS_ERROR_GENERAL 		= -1,
         OS_ERROR_TASKS_COUNT	= -2,
 		OS_ERROR_TASK_PRIORITY	= -3,
-		OS_ERROR_IRQ			= -4
+		OS_ERROR_IRQ			= -4,
+		OS_ERROR_EXIT_IRQ		= -5
 }os_error_t;
 
+/****************************************************************************
+ *  Estados del OS.
+ ****************************************************************************/
+typedef enum
+{
+		OS_BOOTING,
+        OS_FRESH,
+        OS_RUNNING,
+		OS_IRQ
+} os_status_t;
 
 /****************************************************************************
  *  Estructura de control interna de OS.
@@ -100,6 +111,7 @@ typedef enum
 struct _os_control {
         os_status_t system_status;
         bool schedulerIRQ;              				// Scheduling al volver de IRQ
+        os_status_t status_before_irq;
         task_t *current_task;
         task_t *next_task;
         os_error_t error;
@@ -1041,5 +1053,51 @@ void os_unset_schedulerIRQ(void)
 	os_control.schedulerIRQ = false;
 }
 
+/************************************************************************************************
+ * @fn void os_enter_irq_mode(void)
+ * @brief Cambia el OS al estado IRQ.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+void os_enter_irq_mode(void)
+{
+
+	/**
+	 * Si esta función se llama y el OS ya atendiendo
+	 * una interrupción, se va al error hook.
+	 */
+	if (OS_IRQ == os_control.system_status)
+	{
+		os_control.error = OS_ERROR_IRQ;
+		error_hook();
+	}
+
+	os_control.status_before_irq = os_control.system_status;
+
+	os_control.system_status = OS_IRQ;
+}
+
+/************************************************************************************************
+ * @fn void os_exit_irq_mode(void)
+ * @brief Cambia el OS al estado previo a entrar a la IRQ.
+ *
+ * @param None.
+ * @return None.
+ ************************************************************************************************/
+void os_exit_irq_mode(void)
+{
+	/**
+	 * Si esta función se llama y el OS no estaba atendiendo
+	 * una interrupción, se va al error hook.
+	 */
+	if (OS_IRQ != os_control.system_status)
+	{
+		os_control.error = OS_ERROR_EXIT_IRQ;
+		error_hook();
+	}
+
+	os_control.system_status = os_control.status_before_irq;
+}
 
 /********************** end of file ******************************************/

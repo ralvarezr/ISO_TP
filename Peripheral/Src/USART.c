@@ -106,7 +106,8 @@ void USART_Tx_Int(void)
 
 	NVIC_SetPriority(USART3_IRQn,3);
 	NVIC_EnableIRQ(USART3_IRQn);
-	USART3->CR1 |= USART_CR1_TXEIE;
+	//USART3->CR1 |= USART_CR1_TXEIE;
+	USART3->CR1 |= USART_CR1_TCIE;
 }
 
 void USART_Rx_Int(void)

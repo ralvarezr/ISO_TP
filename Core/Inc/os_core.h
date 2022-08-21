@@ -63,17 +63,6 @@ typedef enum
         TASK_BLOCKED
 }task_status_t;
 
-/****************************************************************************
- *  Estados del OS.
- ****************************************************************************/
-typedef enum
-{
-		OS_BOOTING,
-        OS_FRESH,
-        OS_RUNNING,
-		OS_IRQ
-} os_status_t;
-
 
 /****************************************************************************
  *  Estructura de las tareas.
@@ -127,7 +116,8 @@ void os_enter_critical(void);
 void os_exit_critical(void);
 bool os_get_schedulerIRQ_state(void);
 void os_unset_schedulerIRQ(void);
-
+void os_enter_irq_mode(void);
+void os_exit_irq_mode(void);
 
 void task_delay(uint32_t time);
 

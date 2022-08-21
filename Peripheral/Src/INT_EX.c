@@ -26,6 +26,12 @@ void INT_Init(void)
 	NVIC_EnableIRQ(EXTI15_10_IRQn);
 }
 
+void INT_Clean_Int(void)
+{
+	EXTI->PR |= (EXTI_PR_PR13);
+}
+
+/*
 void EXTI15_10_IRQHandler(void)
 {
 	if(EXTI->PR & EXTI_PR_PR13)
@@ -35,7 +41,7 @@ void EXTI15_10_IRQHandler(void)
 		EXTI->PR |= (EXTI_PR_PR13);
 	}
 }
-
+*/
 
 
 

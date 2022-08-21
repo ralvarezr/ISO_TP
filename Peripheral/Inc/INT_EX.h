@@ -11,5 +11,6 @@
 #include "main.h"
 
 void INT_Init(void);
+void INT_Clean_Int(void);
 
 #endif /* INC_INT_EX_H_ */
